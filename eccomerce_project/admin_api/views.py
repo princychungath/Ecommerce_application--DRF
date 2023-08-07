@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAdminUser
 from .models import Product,Category 
 from user_api.models import Order,OrderItem
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from .serializers import ProductSerializer,CategorySerializer
+from .serializers import ProductSerializer,CategorySerializer,OrderconfirmSerializer
 from user_api.serializers import OrderSerializer,OrderItemSerializer
 
 
@@ -85,6 +85,48 @@ class Admin_OrderDetailView(generics.RetrieveAPIView):
             return Response(response_data)
         except Order.DoesNotExist:
             return Response({'error':'Order not found'})
+
+class OrderConfirmView(generics.UpdateAPIView):
+    queryset= Order.objects.all()
+    serializer_class= OrderconfirmSerializer
+    permission_classes=[IsAdminUser]
+    authentication_classes=[JWTAuthentication]
+
+    # def patch(self, request, *args, **kwargs):
+    #     instance = self.get_object()
+    #     print(instance.status)
+    #     serializer_status = request.data.get('status')
+    #     print(serializer_status)
+    #     serializer = self.get_serializer(instance, data={'status': serializer_status}, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         print(instance.status,serializer_status)
+    #         if instance.status != serializer_status:
+    #             return Response({'message': 'Status updated successfully'})
+    #         return Response({'message': 'Status not updated'})
+
+    #     return Response(serializer.errors)
+
+    # def patch(self, request, *args, **kwargs):
+    #     try:
+    #         instance = self.get_object()
+    #         instance_status = instance.status
+    #         print(instance.status)
+    #         serializer = self.get_serializer(instance)
+    #         serializer.save()
+    #         serializer_status = serializer.data.get('status')
+    #         print(serializer.data)
+            
+    #         if instance_status != serializer_status:
+    #             return Response({'message': 'updated status'})
+    #         return Response({'message': 'status not updated'})
+    #     except Order.DoesNotExist:
+    #         return Response({'message': 'no order'})
+
+
+   
+
+
 
 
 

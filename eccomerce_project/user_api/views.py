@@ -1,9 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework import generics
 from rest_framework.response import Response
-from .serializers import UserSignUpSerializer,PasswordResetSerializer,CartSerializer,OrderSerializer,ProfileSerilizer
+from .serializers import UserSignUpSerializer,PasswordResetSerializer,CartSerializer,OrderSerializer,ProfileSerilizer,CartViewSerializer
 from admin_api.serializers import ProductSerializer
-from .models import User,Cart,Order,OrderItem,Profile
+from .models import User,CartItem,Order,OrderItem,Profile,Cart
 from admin_api.models import Product
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
@@ -122,8 +122,8 @@ class ProductDetail(generics.RetrieveAPIView):
 
 
 class CartAddView(generics.CreateAPIView):
-    permission_classes=[IsAuthenticated]
-    authentication_classes=[JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request, *args, **kwargs):
         product_id = int(request.data.get('product_id'))
@@ -135,71 +135,98 @@ class CartAddView(generics.CreateAPIView):
         except Product.DoesNotExist:
             return Response({'error': 'Product not found.'})
 
-        cart_item, created = Cart.objects.get_or_create(user=user, product=product)
+        cart, created = Cart.objects.get_or_create(user=user)
+        cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
 
-        if created or quantity > 1:
-            cart_item.quantity = quantity
+        if item_created or quantity > 1:
+            cart_item.quantity = 1
         else:
             cart_item.quantity += quantity
+
+        print("product.quantity",product.quantity)
+        print("cart_item.quantity",cart_item.quantity)
+        
+
+        if product.quantity < cart_item.quantity:
+            return Response({"error": f" {product.name} : Quantity exceeds available stock"})
+
+        cart_item.total = product.price * cart_item.quantity
         cart_item.save()
-        serializer = CartSerializer(cart_item)
-        return Response({'message': 'Product added to cart.'})
+
+        cart_total = sum(item.total for item in cart.cartitem_set.all())
+
+        serializer = CartSerializer(cart_item, context={'cart_total': cart_total})
+        return Response(serializer.data)
 
 
+
+#N+1 problem avoiding n queries +1 
 class CartListView(generics.ListAPIView):
-    queryset=Cart.objects.all()
-    permission_classes=[IsAuthenticated]
-    authentication_classes=[JWTAuthentication]
-    serializer_class= CartSerializer
+    queryset = CartItem.objects.select_related('cart').all()
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    serializer_class = CartViewSerializer
 
     def get_queryset(self):
         user = self.request.user
-        return Cart.objects.filter(user=user)
+        return self.queryset.filter(cart__user=user)
 
 
 class CartUpdateView(generics.UpdateAPIView):
-    queryset=Cart.objects.all()
+    queryset = CartItem.objects.select_related('cart').all()
     permission_classes=[IsAuthenticated]
     authentication_classes=[JWTAuthentication]
-    serializer_class= CartSerializer
+    serializer_class= CartViewSerializer
 
 
     def patch(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.user != request.user:
+        if instance.cart.user != request.user:
            return Response({"message":"You don't have the permission to update this Comment"})
         return super().patch(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.user != request.user:
+        if instance.cart.user != request.user:
            return Response({"message":"You don't have the permission to update this CART"})
         return super().put(request, *args, **kwargs)
         
 
 
 class CartDeleteView(generics.DestroyAPIView):
-    queryset=Cart.objects.all()
+    queryset=CartItem.objects.select_related('cart').all()
     permission_classes=[IsAuthenticated]
     authentication_classes=[JWTAuthentication]
     serializer_class= CartSerializer
 
     def delete(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.user != request.user:
+        if instance.cart.user != request.user:
             return Response({"message": "You don't have the permission to delete this CART"})
         response = super().delete(request, *args, **kwargs)
         return Response({'message': 'Cart items Removed'})
 
 
 class ProfileView(generics.CreateAPIView):
-    queryset=Profile.objects.all()
+    queryset=Profile.objects.select_related('user').all()
     permission_classes=[IsAuthenticated]
     authentication_classes=[JWTAuthentication]
     serializer_class=ProfileSerilizer
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+class ProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset=Profile.objects.select_related('user').all()
+    permission_classes=[IsAuthenticated]
+    authentication_classes=[JWTAuthentication]
+    serializer_class=ProfileSerilizer
+
+    def get_object(self):
+        profile = super().get_object()
+        if profile.user != self.request.user:
+            raise PermissionDenied("You don't have permission to access this profile.")
+        return profile
 
 
 class OrderCreateView(APIView):
@@ -208,7 +235,7 @@ class OrderCreateView(APIView):
 
     def post(self, request, *args, **kwargs):
         user = self.request.user
-        items = Cart.objects.filter(user=user)
+        items = CartItem.objects.filter(cart__user=user).select_related('cart')
         order_items = []
         total_amount = 0  
 
@@ -217,9 +244,6 @@ class OrderCreateView(APIView):
 
         for item in items:
             product = item.product
-            if product.quantity < item.quantity:
-                return Response({"error": f"Out of stock: {product.name}"})
-
             individual_price = product.price
             individual_total = individual_price * item.quantity
             total_amount += individual_total
@@ -232,9 +256,8 @@ class OrderCreateView(APIView):
 
             product.quantity -= item.quantity
             product.save()
-            items.delete()
 
-        profile = Profile.objects.get(user=user)
+        profile = Profile.objects.select_related('user').get(user=user)
 
         order = Order.objects.create(
             user=user,
@@ -273,12 +296,13 @@ class OrderCreateView(APIView):
         email=EmailMultiAlternatives(subject,text_content,settings.DEFAULT_FROM_EMAIL,email_to)
         email.attach_alternative(html_content,"text/html")
         email.send()
+        items.delete()
         return Response({"message": "Order Submitted successfully."})
 
 
 
 class OrderListView(generics.ListAPIView):
-    queryset= Order.objects.all()
+    queryset= Order.objects.select_related('user').all()
     serializer_class= OrderSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
