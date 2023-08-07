@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head></head>
+<body>
+    <div class="container">
+        <h2>Your order (ID: {{ order.id }}) has been placed successfully. Thank you for your order!</h2>
+        <h2 style="align-items: center; color: darkblue;">Order Details</h2>
+        <table class="table" style="color: black;">
+            <tr>
+                <td>User Name : </td>
+                <td>{{ order.user.username }}</td>
+            </tr>
+            <tr>
+                <td>total_amount :</td>
+                <td>{{ order.total_amount }} Rs</td>
+            </tr>
+            <tr>
+                <td>payment_method : </td>
+                <td>{{order.payment_method}}</td>
+            </tr>
+            <tr>
+                <td> Profile  Details : </td>
+            </tr>
+            <tr>
+                <td>House Name : </td>
+                <td>{{ order.profile.house_name}}</td>
+            </tr>
+            <tr>
+                <td>Place : </td>
+                <td>{{ order.profile.place}}</td>
+            </tr>
+            <tr>
+                <td>Pincode : </td>
+                <td>{{ order.profile.pin}}</td>
+            </tr>
+            <tr>
+                <td>Mobile number : </td>
+                <td>{{ order.profile.mobile_number}}</td>
+            </tr>
+            <tr>
+                <td>status : </td>
+                <td>{{order.status}}</td>
+            </tr>
+        </table>
+        <div class="text-center">
+            <ul>
+                {% for item in order_items %}
+                    <li>Product: {{item.product.name}}</li>
+                    <li>Quantity: {{item.quantity}}</li>
+                    <li>Total: {{item.price}}</li>
+                {%endfor %}
+            </ul>
+            <p style="align-items: center; color: blue;">Happy Shopping!</p>
+        </div>
+    </div>
+</body>
+</html>
+
