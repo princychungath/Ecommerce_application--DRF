@@ -55,14 +55,10 @@ class CartViewSerializer(serializers.ModelSerializer):
 class CartSerializer(serializers.ModelSerializer):
     cart = CartSerializer(read_only=True)
     product = ProductSerializer(read_only=True)
-    total = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = CartItem
         fields = ['id','cart', 'product', 'quantity','total']
-
-    def get_total(self, obj):
-        return obj.product.price * obj.quantity
 
 class ProfileSerilizer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)

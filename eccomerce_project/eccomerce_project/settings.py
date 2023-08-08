@@ -150,3 +150,9 @@ EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
 EMAIL_HOST_USER = '91640eb7b52186'
 EMAIL_HOST_PASSWORD = '8bb6e2d9e8c09f'
 EMAIL_PORT = '2525'
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'user_api.pagination.MyCustomPagination',
+    'PAGE_SIZE':5
+}

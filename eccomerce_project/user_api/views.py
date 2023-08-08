@@ -8,8 +8,8 @@ from admin_api.models import Product
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from .pagination import MyCustomPagination
 
-from django.core.mail import send_mail
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -30,9 +30,8 @@ class RegisterUser(APIView):
             user = serializer.save()
             subject = 'User Registration'
             email_to=[user.email]
-            html_content = render_to_string('user_reg.html', {'username': user.username})
-            text_content = strip_tags(html_content)
-            email = EmailMultiAlternatives(subject,text_content,settings.DEFAULT_FROM_EMAIL,email_to)
+            html_content = render_to_string('user_reg.html', user)
+            email = EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
             email.attach_alternative(html_content,"text/html")
             email.send()
             return Response({"message": "User created."})
@@ -49,7 +48,7 @@ class SendPasswordResetEmail(APIView):
         user = User.objects.filter(email=email).first()
         if not user:
             return Response({'error': 'User with this email address does not exist.'})
-        # generates a password reset token that is associated with the specific user. 
+        # generates a password reset token 
         token = default_token_generator.make_token(user)
         #encode pk
         uid = urlsafe_base64_encode(force_bytes(user.pk))
@@ -64,8 +63,7 @@ class SendPasswordResetEmail(APIView):
         subject = 'Password Reset'
         email_to = [email]
         html_content = render_to_string('reset_password.html',context)
-        text_content = strip_tags(html_content)
-        email = EmailMultiAlternatives(subject,text_content , settings.DEFAULT_FROM_EMAIL, email_to)
+        email = EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL, email_to)
         email.attach_alternative(html_content,"text/html")
         email.send()
         return Response({'success': 'Password reset email sent.'})
@@ -86,13 +84,13 @@ class PasswordResetView(APIView):
                 user = User.objects.get(pk=user_id)
                 # Verify the token's validity
                 if default_token_generator.check_token(user, token):
-                    # Set the new password and save the user object
                     user.set_password(new_password)
                     user.save()
                     return Response({'message': 'Password successfully reset.'})
             except User.DoesNotExist:
                 return Response({'User': 'User DoesNotExist'})
         return Response({'error': 'Invalid password reset link.'})
+
 
 
 class ProductList(generics.ListAPIView):
@@ -102,6 +100,7 @@ class ProductList(generics.ListAPIView):
     authentication_classes = [JWTAuthentication]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['name','price','quantity','categories']
+    pagination_class=MyCustomPagination
 
 
 
@@ -127,7 +126,7 @@ class CartAddView(generics.CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         product_id = int(request.data.get('product_id'))
-        quantity = int(request.data.get('quantity', 1))
+        quantity = int(request.data.get('quantity'))
         user = request.user
 
         try:
@@ -135,28 +134,35 @@ class CartAddView(generics.CreateAPIView):
         except Product.DoesNotExist:
             return Response({'error': 'Product not found.'})
 
+        if product.quantity <= 0:
+            return Response({"error": f" {product.name} : Out of stock"})
+
         cart, created = Cart.objects.get_or_create(user=user)
+
+        if quantity == 0:
+            return Response({"error": "Quantity must be at least 1"})
+        
         cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
 
-        if item_created or quantity > 1:
-            cart_item.quantity = 1
-        else:
+        if not item_created:
             cart_item.quantity += quantity
-
-        print("product.quantity",product.quantity)
-        print("cart_item.quantity",cart_item.quantity)
+        else:
+            cart_item.quantity = int(quantity)
         
-
         if product.quantity < cart_item.quantity:
+            cart_item.delete()
             return Response({"error": f" {product.name} : Quantity exceeds available stock"})
 
         cart_item.total = product.price * cart_item.quantity
         cart_item.save()
 
         cart_total = sum(item.total for item in cart.cartitem_set.all())
-
-        serializer = CartSerializer(cart_item, context={'cart_total': cart_total})
-        return Response(serializer.data)
+        serializer = CartSerializer(cart_item)
+        context={
+            'cart_total':cart_total,
+            "cart_items":serializer.data
+        }
+        return Response(context)
 
 
 
@@ -274,7 +280,8 @@ class OrderCreateView(APIView):
                 quantity=item['quantity'],
                 price=item['price']
             )
-
+        
+        
         context={
             'order':order,
             'order_items':order_items
@@ -283,8 +290,7 @@ class OrderCreateView(APIView):
         subject="Order Placed Successfully"
         email_to=[user.email]
         html_content=render_to_string('order.html',context)
-        text_content=strip_tags(html_content)
-        email=EmailMultiAlternatives(subject,text_content,settings.DEFAULT_FROM_EMAIL,email_to)
+        email=EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
         email.attach_alternative(html_content,"text/html")
         email.send()
 
@@ -292,13 +298,12 @@ class OrderCreateView(APIView):
         subject="New Order Received"
         email_to=['admin@gmail.com']
         html_content=render_to_string('order_admin.html',context)
-        text_content=strip_tags(html_content)
-        email=EmailMultiAlternatives(subject,text_content,settings.DEFAULT_FROM_EMAIL,email_to)
+        email=EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
         email.attach_alternative(html_content,"text/html")
         email.send()
         items.delete()
-        return Response({"message": "Order Submitted successfully."})
-
+        serializer_data=OrderSerializer(order)
+        return Response({'order':serializer_data.data})
 
 
 class OrderListView(generics.ListAPIView):
@@ -306,8 +311,8 @@ class OrderListView(generics.ListAPIView):
     serializer_class= OrderSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    pagination_class=MyCustomPagination
 
     def get_queryset(self):
         user = self.request.user
         return Order.objects.filter(user=user)
-

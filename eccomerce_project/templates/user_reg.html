@@ -4,9 +4,11 @@
 <body style="background-color: #f2f2f2;">
     <div style="max-width: 400px;">
         <h2 style="color: #0066cc; text-align: center;">User Registration Successful</h2>
-        <p>Dear {{ username }},</p>
-        <p>Thank you for registering on our Ecommece Website.</p>
-        <p style="font-weight: bold; text-align: center;">Happy Shopping!</p>
+        <p>Dear {{ user.username }},</p>
+        <p><strong>User Name:       {{user.username}}</strong></p>
+        <p>Password:        {{user.password}}</p>
+        <p>Thank you for choosing us for your shopping needs. We're here to assist you with any further inquiries you may have.</p>
+        <p style="color: blue;">Happy Shopping!</p>
     </div>
 </body>
 </html>

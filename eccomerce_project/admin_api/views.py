@@ -2,10 +2,38 @@ from rest_framework.response import Response
 from rest_framework import generics
 from rest_framework.permissions import IsAdminUser
 from .models import Product,Category 
-from user_api.models import Order,OrderItem
+from user_api.models import Order,OrderItem,User
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from .serializers import ProductSerializer,CategorySerializer,OrderconfirmSerializer
+from .serializers import ProductSerializer,CategorySerializer,OrderconfirmSerializer,UserListSerilizer
 from user_api.serializers import OrderSerializer,OrderItemSerializer
+from user_api.pagination import MyCustomPagination
+
+
+
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+
+
+class  UserListView(generics.ListAPIView):
+    queryset=User.objects.all()
+    serializer_class= UserListSerilizer
+    permission_classes=[IsAdminUser]
+    authentication_classes=[JWTAuthentication]
+    pagination_class=MyCustomPagination
+
+
+class UserRemoveView(generics.DestroyAPIView):
+    queryset=User.objects.all()
+    serializer_class= UserListSerilizer
+    permission_classes=[IsAdminUser]
+    authentication_classes=[JWTAuthentication]
+
+    def delete(self,request,*args,**kwargs):
+        response=super().delete(self,request,*args,**kwargs)
+        return Response({'message','User is deleted'})
+
 
 
 class CategoryCreateView(generics.ListCreateAPIView):
@@ -13,7 +41,8 @@ class CategoryCreateView(generics.ListCreateAPIView):
     serializer_class=CategorySerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
-
+    
+    
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
@@ -39,6 +68,7 @@ class ProductCreateView(generics.ListCreateAPIView):
     serializer_class=ProductSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
+    pagination_class=MyCustomPagination
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -65,6 +95,7 @@ class Admin_OrderListView(generics.ListAPIView):
     serializer_class= OrderSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
+    pagination_class=MyCustomPagination
 
 class Admin_OrderDetailView(generics.RetrieveAPIView):
     queryset= Order.objects.all()
@@ -86,42 +117,35 @@ class Admin_OrderDetailView(generics.RetrieveAPIView):
         except Order.DoesNotExist:
             return Response({'error':'Order not found'})
 
+
 class OrderConfirmView(generics.UpdateAPIView):
     queryset= Order.objects.all()
     serializer_class= OrderconfirmSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
 
-    # def patch(self, request, *args, **kwargs):
-    #     instance = self.get_object()
-    #     print(instance.status)
-    #     serializer_status = request.data.get('status')
-    #     print(serializer_status)
-    #     serializer = self.get_serializer(instance, data={'status': serializer_status}, partial=True)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         print(instance.status,serializer_status)
-    #         if instance.status != serializer_status:
-    #             return Response({'message': 'Status updated successfully'})
-    #         return Response({'message': 'Status not updated'})
-
-    #     return Response(serializer.errors)
-
-    # def patch(self, request, *args, **kwargs):
-    #     try:
-    #         instance = self.get_object()
-    #         instance_status = instance.status
-    #         print(instance.status)
-    #         serializer = self.get_serializer(instance)
-    #         serializer.save()
-    #         serializer_status = serializer.data.get('status')
-    #         print(serializer.data)
-            
-    #         if instance_status != serializer_status:
-    #             return Response({'message': 'updated status'})
-    #         return Response({'message': 'status not updated'})
-    #     except Order.DoesNotExist:
-    #         return Response({'message': 'no order'})
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance_status=instance.status
+        serializer_status = request.data.get('status')
+        serializer = self.get_serializer(instance, data={'status': serializer_status}, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            if instance_status != serializer_status:
+                context={
+                    'order_id':instance.id,
+                    'status':serializer_status
+                }
+                subject="Order Status Updated"
+                email_to=[instance.user.email]
+                html_content=render_to_string('status_update.html',context)
+                text_content=strip_tags(html_content)
+                email=EmailMultiAlternatives(subject,text_content,settings.DEFAULT_FROM_EMAIL,email_to)
+                email.attach_alternative(html_content,"text/html")
+                email.send()
+                return Response({'message': 'Status updated successfully'})
+            return Response({'message': 'Status not updated'})
+        return Response(serializer.errors)
 
 
    
