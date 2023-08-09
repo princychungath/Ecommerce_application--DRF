@@ -13,7 +13,6 @@ from .pagination import MyCustomPagination
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
-from django.utils.html import strip_tags
 
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
@@ -22,8 +21,9 @@ from django.utils.http import urlsafe_base64_decode
 
 
 
-class RegisterUser(APIView):
+# API view for user registration
 
+class RegisterUser(APIView):
     def post(self, request, *args, **kwargs):
         serializer = UserSignUpSerializer(data=request.data)
         if serializer.is_valid():
@@ -39,6 +39,10 @@ class RegisterUser(APIView):
             return Response(serializer.errors)
 
 
+
+
+# API endpoint for sending a password reset email to the provided email address
+
 class SendPasswordResetEmail(APIView):
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
@@ -52,7 +56,7 @@ class SendPasswordResetEmail(APIView):
         token = default_token_generator.make_token(user)
         #encode pk
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        reset_url = 'http://127.0.0.1:8000/app_user/reset-password/'  
+        reset_url = 'http://127.0.0.1:8000/app_user/reset/password/'  
 
         context = {
             'reset_url': reset_url,
@@ -69,8 +73,11 @@ class SendPasswordResetEmail(APIView):
         return Response({'success': 'Password reset email sent.'})
 
 
-class PasswordResetView(APIView):
 
+
+# Resets the user's password using a provided reset link. 
+
+class PasswordResetView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = PasswordResetSerializer(data=request.data)
 
@@ -86,15 +93,18 @@ class PasswordResetView(APIView):
                 if default_token_generator.check_token(user, token):
                     user.set_password(new_password)
                     user.save()
-                    return Response({'message': 'Password successfully reset.'})
+                    return Response({'New Password':new_password})
             except User.DoesNotExist:
                 return Response({'User': 'User DoesNotExist'})
-        return Response({'error': 'Invalid password reset link.'})
+        return Response({'error': 'Invalid password reset link '})
 
 
+
+
+# API to list products with filtering and pagination
 
 class ProductList(generics.ListAPIView):
-    queryset = Product.objects.all()
+    queryset = Product.objects.prefetch_related('categories').all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -104,8 +114,13 @@ class ProductList(generics.ListAPIView):
 
 
 
+
+
+# Displays the detailed information of a product identified by its unique ID.
+
 class ProductDetail(generics.RetrieveAPIView):
-    queryset = Product.objects.all()
+
+    queryset = Product.objects.prefetch_related('categories').all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -115,11 +130,12 @@ class ProductDetail(generics.RetrieveAPIView):
             instance = self.get_object()
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
-        except Post.DoesNotExist:
+        except Product.DoesNotExist:
             return Response({"message": "Product not found."})
 
 
 
+# API  to add products to the user's cart.
 class CartAddView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -166,7 +182,7 @@ class CartAddView(generics.CreateAPIView):
 
 
 
-#N+1 problem avoiding n queries +1 
+#API for listing all cart items
 class CartListView(generics.ListAPIView):
     queryset = CartItem.objects.select_related('cart').all()
     permission_classes = [IsAuthenticated]
@@ -178,12 +194,13 @@ class CartListView(generics.ListAPIView):
         return self.queryset.filter(cart__user=user)
 
 
+
+# API for updating cartitems in the user's cart. 
 class CartUpdateView(generics.UpdateAPIView):
     queryset = CartItem.objects.select_related('cart').all()
     permission_classes=[IsAuthenticated]
     authentication_classes=[JWTAuthentication]
     serializer_class= CartViewSerializer
-
 
     def patch(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -198,7 +215,7 @@ class CartUpdateView(generics.UpdateAPIView):
         return super().put(request, *args, **kwargs)
         
 
-
+# API for Removing cartitems in the user's cart.
 class CartDeleteView(generics.DestroyAPIView):
     queryset=CartItem.objects.select_related('cart').all()
     permission_classes=[IsAuthenticated]
@@ -213,6 +230,7 @@ class CartDeleteView(generics.DestroyAPIView):
         return Response({'message': 'Cart items Removed'})
 
 
+# API endpoint for creating a user profile.
 class ProfileView(generics.CreateAPIView):
     queryset=Profile.objects.select_related('user').all()
     permission_classes=[IsAuthenticated]
@@ -222,6 +240,8 @@ class ProfileView(generics.CreateAPIView):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+
+#  Detail,update,delete viewsfor user-Profile
 class ProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset=Profile.objects.select_related('user').all()
     permission_classes=[IsAuthenticated]
@@ -235,6 +255,8 @@ class ProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
         return profile
 
 
+
+# API view for creating  order
 class OrderCreateView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -306,7 +328,9 @@ class OrderCreateView(APIView):
         return Response({'order':serializer_data.data})
 
 
+# API view for listing Orders associated with User
 class OrderListView(generics.ListAPIView):
+
     queryset= Order.objects.select_related('user').all()
     serializer_class= OrderSerializer
     permission_classes = [IsAuthenticated]

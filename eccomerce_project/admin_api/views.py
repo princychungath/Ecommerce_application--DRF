@@ -8,22 +8,21 @@ from .serializers import ProductSerializer,CategorySerializer,OrderconfirmSerial
 from user_api.serializers import OrderSerializer,OrderItemSerializer
 from user_api.pagination import MyCustomPagination
 
-
-
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
-from django.utils.html import strip_tags
 
 
+#listing all users
 class  UserListView(generics.ListAPIView):
-    queryset=User.objects.all()
+    queryset=User.objects.all().order_by('username')
     serializer_class= UserListSerilizer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
-    pagination_class=MyCustomPagination
 
 
+
+#removing Users
 class UserRemoveView(generics.DestroyAPIView):
     queryset=User.objects.all()
     serializer_class= UserListSerilizer
@@ -35,7 +34,7 @@ class UserRemoveView(generics.DestroyAPIView):
         return Response({'message','User is deleted'})
 
 
-
+#view for adding new categories
 class CategoryCreateView(generics.ListCreateAPIView):
     queryset=Category.objects.all()
     serializer_class=CategorySerializer
@@ -52,6 +51,7 @@ class CategoryCreateView(generics.ListCreateAPIView):
             return Response(serializer.errors)
 
 
+#detailview for category- update,delete 
 class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -63,6 +63,8 @@ class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response({'message': 'Category is deleted'})
 
 
+
+#view for creating new products
 class ProductCreateView(generics.ListCreateAPIView):
     queryset=Product.objects.all()
     serializer_class=ProductSerializer
@@ -79,8 +81,9 @@ class ProductCreateView(generics.ListCreateAPIView):
             return Response(serializer.errors)
 
 
+#detailview of products
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Product.objects.all()
+    queryset = Product.objects.prefetch_related('categories').all()
     serializer_class = ProductSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
@@ -90,15 +93,19 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response({'message': 'Product is deleted'})
 
 
+
+#view for listing all orders
 class Admin_OrderListView(generics.ListAPIView):
-    queryset= Order.objects.all()
+    queryset= Order.objects.all().select_related('user', 'profile')
     serializer_class= OrderSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
     pagination_class=MyCustomPagination
 
+
+# detailview for orders
 class Admin_OrderDetailView(generics.RetrieveAPIView):
-    queryset= Order.objects.all()
+    queryset= Order.objects.all().select_related('user', 'profile')
     serializer_class= OrderSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
@@ -118,8 +125,10 @@ class Admin_OrderDetailView(generics.RetrieveAPIView):
             return Response({'error':'Order not found'})
 
 
+
+# UpdateAPIView for order-status update , passing statusupdates through email
 class OrderConfirmView(generics.UpdateAPIView):
-    queryset= Order.objects.all()
+    queryset= Order.objects.all().select_related('user', 'profile')
     serializer_class= OrderconfirmSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
@@ -139,8 +148,7 @@ class OrderConfirmView(generics.UpdateAPIView):
                 subject="Order Status Updated"
                 email_to=[instance.user.email]
                 html_content=render_to_string('status_update.html',context)
-                text_content=strip_tags(html_content)
-                email=EmailMultiAlternatives(subject,text_content,settings.DEFAULT_FROM_EMAIL,email_to)
+                email=EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
                 email.attach_alternative(html_content,"text/html")
                 email.send()
                 return Response({'message': 'Status updated successfully'})

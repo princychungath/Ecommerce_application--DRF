@@ -31,6 +31,25 @@ class PasswordResetSerializer(serializers.Serializer):
     uid = serializers.CharField(required=True)
     token = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
+    new_password_1= serializers.CharField(required=True)
+
+
+    def validate(self, data):
+        new_password = data.get('new_password')
+        new_password_1 = data.get('new_password_1')
+
+        if new_password != new_password_1:
+            raise serializers.ValidationError("Passwords do not match.")
+        return data
+
+    def save(self):
+        uid = self.validated_data['uid']
+        new_password = self.validated_data['new_password']
+
+        user = User.objects.get(id=uid)
+        user.set_password(new_password)
+        user.save()
+        return user
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
