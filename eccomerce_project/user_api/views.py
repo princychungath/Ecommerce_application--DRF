@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework import generics
 from rest_framework.response import Response
-from .serializers import UserSignUpSerializer,PasswordResetSerializer,CartSerializer,OrderSerializer,ProfileSerilizer,CartViewSerializer
+from .serializers import CartItemSerializer,UserSignUpSerializer,PasswordResetSerializer,OrderSerializer,ProfileSerilizer
 from admin_api.serializers import ProductSerializer
 from .models import User,CartItem,Order,OrderItem,Profile,Cart
 from admin_api.models import Product
@@ -118,13 +118,14 @@ class ProductList(generics.ListAPIView):
 
 
 
-
 # Displays the detailed information of a product identified by its unique ID.
 
 class ProductDetail(generics.RetrieveAPIView):
 
     queryset = Product.objects.prefetch_related('categories').all()
     serializer_class = ProductSerializer
+    pagination_class = None
+
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
@@ -139,6 +140,7 @@ class ProductDetail(generics.RetrieveAPIView):
 class CartAddView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
 
     def post(self, request, *args, **kwargs):
         product_id = int(request.data.get('product_id'))
@@ -173,7 +175,7 @@ class CartAddView(generics.CreateAPIView):
         cart_item.save()
 
         cart_total = sum(item.total for item in cart.cartitem_set.all())
-        serializer = CartSerializer(cart_item)
+        serializer = CartItemSerializer(cart_item)
         context={
             'cart_total':cart_total,
             "cart_items":serializer.data
@@ -187,7 +189,8 @@ class CartListView(generics.ListAPIView):
     queryset = CartItem.objects.select_related('cart').all()
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    serializer_class = CartViewSerializer
+    serializer_class = CartItemSerializer
+    pagination_class = None
 
     def get_queryset(self):
         user = self.request.user
@@ -200,7 +203,12 @@ class CartUpdateView(generics.UpdateAPIView):
     queryset = CartItem.objects.select_related('cart').all()
     permission_classes=[IsAuthenticated]
     authentication_classes=[JWTAuthentication]
-    serializer_class= CartViewSerializer
+    serializer_class= CartItemSerializer
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        instance.total = instance.quantity * instance.product.price
+        instance.save()
 
     def patch(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -220,7 +228,7 @@ class CartDeleteView(generics.DestroyAPIView):
     queryset=CartItem.objects.select_related('cart').all()
     permission_classes=[IsAuthenticated]
     authentication_classes=[JWTAuthentication]
-    serializer_class= CartSerializer
+    serializer_class= CartItemSerializer
 
     def delete(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -237,6 +245,7 @@ class ProfileView(generics.CreateAPIView):
     authentication_classes=[JWTAuthentication]
     serializer_class=ProfileSerilizer
 
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
@@ -247,6 +256,7 @@ class ProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes=[IsAuthenticated]
     authentication_classes=[JWTAuthentication]
     serializer_class=ProfileSerilizer
+
 
     def get_object(self):
         profile = super().get_object()
@@ -260,6 +270,7 @@ class ProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
 class OrderCreateView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
 
     def post(self, request, *args, **kwargs):
         user = self.request.user
@@ -340,6 +351,7 @@ class OrderListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     pagination_class=MyCustomPagination
+    
 
     def get_queryset(self):
         user = self.request.user

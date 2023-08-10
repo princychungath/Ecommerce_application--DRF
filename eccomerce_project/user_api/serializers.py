@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from .models import User,CartItem,Order,OrderItem,Profile,Cart
-from  admin_api.serializers import ProductSerializer
-
+from admin_api.models import Product,Category
 
 class UserSignUpSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -51,33 +50,11 @@ class PasswordResetSerializer(serializers.Serializer):
         user.save()
         return user
 
+
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id','username']
-
-class CartSerializer(serializers.ModelSerializer):
-    user=UserSerializer(read_only=True)
-    class Meta:
-        model = Cart
-        fields = ['id','user']
-
-
-class CartViewSerializer(serializers.ModelSerializer):
-    cart = CartSerializer(read_only=True)
-    product = ProductSerializer(read_only=True)
-    
-    class Meta:
-        model = CartItem
-        fields = ['id','cart', 'product', 'quantity','total']
-        
-class CartSerializer(serializers.ModelSerializer):
-    cart = CartSerializer(read_only=True)
-    product = ProductSerializer(read_only=True)
-
-    class Meta:
-        model = CartItem
-        fields = ['id','cart', 'product', 'quantity','total']
 
 class ProfileSerilizer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -85,17 +62,31 @@ class ProfileSerilizer(serializers.ModelSerializer):
         model =Profile
         fields = ['user','house_name','place','pin','mobile_number']
 
-class UserSerializer(serializers.ModelSerializer):
+
+
+class ProductSerializer(serializers.ModelSerializer):    
     class Meta:
-        model = User
-        fields = ['id','username']
+        model=Product
+        fields=['id','name','image']
+     
+class CartItemSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
+
+    class Meta:
+        model = CartItem
+        fields = ['id','cart', 'product', 'quantity','total']
+
+
+# class UserSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = User
+#         fields = ['id','username']
 
 class OrderSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     class Meta:
         model = Order
         fields = ['id','user','created_at','total_amount','payment_method']
-
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True) 
