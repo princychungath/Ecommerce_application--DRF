@@ -28,16 +28,16 @@ class RegisterUser(APIView):
         serializer = UserSignUpSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            context={"user":user}
             subject = 'User Registration'
             email_to=[user.email]
-            html_content = render_to_string('user_reg.html', user)
+            html_content = render_to_string('user_reg.html',context)
             email = EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
             email.attach_alternative(html_content,"text/html")
             email.send()
-            return Response({"message": "User created."})
+            return Response({'message':'User registered successfully'})
         else:
             return Response(serializer.errors)
-
 
 
 
@@ -70,7 +70,11 @@ class SendPasswordResetEmail(APIView):
         email = EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL, email_to)
         email.attach_alternative(html_content,"text/html")
         email.send()
-        return Response({'success': 'Password reset email sent.'})
+        response_data = {
+            'success': 'Password reset email sent.',
+            'context': context
+        }
+        return Response(response_data)
 
 
 
