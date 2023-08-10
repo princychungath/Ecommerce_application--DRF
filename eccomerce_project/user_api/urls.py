@@ -14,8 +14,10 @@ urlpatterns=[
     path('cart/update/<int:pk>/',views.CartUpdateView.as_view(), name='cart-update'),
     path('cart/delete/<int:pk>/',views.CartDeleteView.as_view(), name='cart-update'),
 
+    path('profile/',views.ProfileView.as_view(),name='profile'),
+    path('profile/update/<int:pk>/',views.ProfileDetailView.as_view(),name='profile-update'),
+
     path('order/add/',views.OrderCreateView.as_view(), name='order-add'),
     path('order/list/',views.OrderListView.as_view(), name='order-lists'),
-    path('profile/',views.ProfileView.as_view(),name='profile'),
     
 ]

@@ -14,6 +14,15 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id','category_name']
 
 
+class ProductCreateSerializer(serializers.ModelSerializer):
+    categories = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), many=True)
+    
+    class Meta:
+        model=Product
+        fields=['id','name','description','price','quantity','image','categories']
+
+
+
 class ProductSerializer(serializers.ModelSerializer):
     categories = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), many=True)
     quantity=serializers.SerializerMethodField()

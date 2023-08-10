@@ -70,9 +70,10 @@ class SendPasswordResetEmail(APIView):
         email = EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL, email_to)
         email.attach_alternative(html_content,"text/html")
         email.send()
-        response_data = {
+        response_data={
             'success': 'Password reset email sent.',
-            'context': context
+            'token':token,
+            'uid':uid,
         }
         return Response(response_data)
 
@@ -110,8 +111,6 @@ class PasswordResetView(APIView):
 class ProductList(generics.ListAPIView):
     queryset = Product.objects.prefetch_related('categories').all()
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['name','price','quantity','categories']
     pagination_class=MyCustomPagination
@@ -126,9 +125,6 @@ class ProductDetail(generics.RetrieveAPIView):
 
     queryset = Product.objects.prefetch_related('categories').all()
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
-
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
@@ -289,7 +285,11 @@ class OrderCreateView(APIView):
             product.quantity -= item.quantity
             product.save()
 
-        profile = Profile.objects.select_related('user').get(user=user)
+        profile = Profile.objects.select_related('user').filter(user=user).first()
+
+        if not profile:
+            return Response({"error":"Profile does not exist. Please provide the complete address by following this link.",
+            "link":" http://127.0.0.1:8000/app_user/profile/"})
 
         order = Order.objects.create(
             user=user,
