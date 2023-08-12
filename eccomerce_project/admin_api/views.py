@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAdminUser
 from .models import Product,Category 
 from user_api.models import Order,OrderItem,User
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from .serializers import ProductSerializer,CategorySerializer,OrderconfirmSerializer,UserListSerilizer,ProductCreateSerializer
+from .serializers import CategoryViewSerializer,ProductSerializer,OrderconfirmSerializer,UserListSerilizer,ProductCreateSerializer
 from user_api.serializers import OrderSerializer,OrderItemSerializer
 from user_api.pagination import MyCustomPagination
 from  rest_framework.views import APIView
@@ -12,7 +12,7 @@ from  rest_framework.views import APIView
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
-
+import json
 
 #listing all users
 class  UserListView(generics.ListAPIView):
@@ -20,7 +20,6 @@ class  UserListView(generics.ListAPIView):
     serializer_class= UserListSerilizer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
-
 
 #removing Users
 class UserRemoveView(generics.DestroyAPIView):
@@ -53,24 +52,19 @@ class PramotionalMailView(APIView):
 #view for adding new categories
 class CategoryCreateView(generics.ListCreateAPIView):
     queryset=Category.objects.all()
-    serializer_class=CategorySerializer
+    serializer_class=CategoryViewSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
     
-    
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message":"Category is Added"})
-        else:
-            return Response(serializer.errors)
+    def perform_create(self, serializer):
+        serializer.save(created_user=self.request.user)
+
 
 
 #detailview for category- update,delete 
 class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all()
-    serializer_class = CategorySerializer
+    serializer_class = CategoryViewSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
 
@@ -81,23 +75,27 @@ class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 #view for creating new products
-class ProductCreateView(generics.ListCreateAPIView):
+class ProductCreateView(generics.CreateAPIView):
     queryset=Product.objects.all()
     serializer_class=ProductCreateSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
 
+
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            product=serializer.save(created_user=self.request.user)
+            categories=json.loads(request.data.get('categories'))
+            product.categories.add(*categories)
             return Response({"message": "Product is Created"})
         else:
             return Response(serializer.errors)
 
+
 #view for Listing products
 class ProductListView(generics.ListAPIView):
-    queryset=Product.objects.all()
+    queryset=Product.objects.all().prefetch_related('categories')
     serializer_class=ProductSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
@@ -119,7 +117,7 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 #view for listing all orders
 class Admin_OrderListView(generics.ListAPIView):
-    queryset= Order.objects.all().select_related('user','profile')
+    queryset= Order.objects.all().select_related('user','address')
     serializer_class= OrderSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
@@ -128,7 +126,7 @@ class Admin_OrderListView(generics.ListAPIView):
 
 # detailview for orders
 class Admin_OrderDetailView(generics.RetrieveAPIView):
-    queryset= Order.objects.all().select_related('user','profile')
+    queryset= Order.objects.all().select_related('user','address')
     serializer_class= OrderSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
@@ -151,32 +149,32 @@ class Admin_OrderDetailView(generics.RetrieveAPIView):
 
 # UpdateAPIView for order-status update , passing statusupdates through email
 class OrderConfirmView(generics.UpdateAPIView):
-    queryset= Order.objects.all().select_related('user', 'profile')
+    queryset= Order.objects.all().select_related('user', 'address')
     serializer_class= OrderconfirmSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
 
-    def patch(self, request, *args, **kwargs):
+    def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance_status=instance.status
+        instance_status = instance.status
         serializer_status = request.data.get('status')
-        serializer = self.get_serializer(instance, data={'status': serializer_status}, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            if instance_status != serializer_status:
-                context={
-                    'order_id':instance.id,
-                    'status':serializer_status
-                }
-                subject="Order Status Updated"
-                email_to=[instance.user.email]
-                html_content=render_to_string('status_update.html',context)
-                email=EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
-                email.attach_alternative(html_content,"text/html")
-                email.send()
-                return Response({'message': 'Status updated successfully'})
-            return Response({'message': 'Status not updated'})
-        return Response(serializer.errors)
+        instance.status = serializer_status
+        instance.save()
+        if instance_status != serializer_status:
+            context = {
+                'order_id': instance.id,
+                'status': serializer_status
+            }
+            subject = "Order Status Updated"
+            email_to = [instance.user.email]
+            html_content = render_to_string('status_update.html', context)
+            email = EmailMultiAlternatives(subject, html_content, settings.DEFAULT_FROM_EMAIL, email_to)
+            email.attach_alternative(html_content, "text/html")
+            email.send()
+            return Response({'message': 'Status updated successfully'})
+        return Response({'message': 'Status not updated'})
+
+
 
 
 

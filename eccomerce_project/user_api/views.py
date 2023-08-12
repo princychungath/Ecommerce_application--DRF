@@ -1,14 +1,15 @@
 from rest_framework.views import APIView
 from rest_framework import generics
 from rest_framework.response import Response
-from .serializers import CartItemSerializer,UserSignUpSerializer,PasswordResetSerializer,OrderSerializer,ProfileSerilizer
+from .serializers import CartItemSerializer,UserSignUpSerializer,PasswordResetSerializer,OrderSerializer,AddressSerilizer,ProfileSerilizer
 from admin_api.serializers import ProductSerializer
-from .models import User,CartItem,Order,OrderItem,Profile,Cart
+from .models import User,CartItem,Order,OrderItem,Address,Profile
 from admin_api.models import Product
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from .pagination import MyCustomPagination
+from django.core.exceptions import PermissionDenied
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -38,6 +39,7 @@ class RegisterUser(APIView):
             return Response({'message':'User registered successfully'})
         else:
             return Response(serializer.errors)
+
 
 
 
@@ -112,9 +114,8 @@ class ProductList(generics.ListAPIView):
     queryset = Product.objects.prefetch_related('categories').all()
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['name','price','quantity','categories']
+    filterset_fields = ['name','price','quantity','categories__category_name']
     pagination_class=MyCustomPagination
-
 
 
 
@@ -124,7 +125,6 @@ class ProductDetail(generics.RetrieveAPIView):
 
     queryset = Product.objects.prefetch_related('categories').all()
     serializer_class = ProductSerializer
-    pagination_class = None
 
     def retrieve(self, request, *args, **kwargs):
         try:
@@ -155,12 +155,11 @@ class CartAddView(generics.CreateAPIView):
         if product.quantity <= 0:
             return Response({"error": f" {product.name} : Out of stock"})
 
-        cart, created = Cart.objects.get_or_create(user=user)
 
         if quantity == 0:
             return Response({"error": "Quantity must be at least 1"})
         
-        cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
+        cart_item, item_created = CartItem.objects.get_or_create(user=user, product=product)
 
         if not item_created:
             cart_item.quantity += quantity
@@ -174,19 +173,16 @@ class CartAddView(generics.CreateAPIView):
         cart_item.total = product.price * cart_item.quantity
         cart_item.save()
 
-        cart_total = sum(item.total for item in cart.cartitem_set.all())
         serializer = CartItemSerializer(cart_item)
         context={
-            'cart_total':cart_total,
             "cart_items":serializer.data
         }
         return Response(context)
 
 
-
 #API for listing all cart items
 class CartListView(generics.ListAPIView):
-    queryset = CartItem.objects.select_related('cart').all()
+    queryset = CartItem.objects.select_related('user').all()
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     serializer_class = CartItemSerializer
@@ -194,13 +190,13 @@ class CartListView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return self.queryset.filter(cart__user=user)
+        return self.queryset.filter(user=user)
 
 
 
 # API for updating cartitems in the user's cart. 
 class CartUpdateView(generics.UpdateAPIView):
-    queryset = CartItem.objects.select_related('cart').all()
+    queryset = CartItem.objects.select_related('user').all()
     permission_classes=[IsAuthenticated]
     authentication_classes=[JWTAuthentication]
     serializer_class= CartItemSerializer
@@ -212,13 +208,13 @@ class CartUpdateView(generics.UpdateAPIView):
 
     def patch(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.cart.user != request.user:
+        if instance.user != request.user:
            return Response({"message":"You don't have the permission to update this Comment"})
         return super().patch(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.cart.user != request.user:
+        if instance.user != request.user:
            return Response({"message":"You don't have the permission to update this CART"})
         return super().put(request, *args, **kwargs)
         
@@ -232,18 +228,48 @@ class CartDeleteView(generics.DestroyAPIView):
 
     def delete(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.cart.user != request.user:
+        if instance.user != request.user:
             return Response({"message": "You don't have the permission to delete this CART"})
         response = super().delete(request, *args, **kwargs)
         return Response({'message': 'Cart items Removed'})
 
 
+# API endpoint for Addding Address.
+class AddressCreateView(generics.ListCreateAPIView):
+    queryset=Address.objects.select_related('user').all()
+    permission_classes=[IsAuthenticated]
+    authentication_classes=[JWTAuthentication]
+    serializer_class=AddressSerilizer
+    pagination_class=None
+
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+#  Detail,update,delete viewsfor user-Address
+class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset=Address.objects.select_related('user').all()
+    permission_classes=[IsAuthenticated]
+    authentication_classes=[JWTAuthentication]
+    serializer_class=AddressSerilizer
+
+
+
+    def get_object(self):
+        address = super().get_object()
+        if address.user != self.request.user:
+            raise PermissionDenied("You don't have permission to access this address.")
+        return address
+
+
 # API endpoint for creating a user profile.
-class ProfileView(generics.CreateAPIView):
+class ProfileCreateView(generics.ListCreateAPIView):
     queryset=Profile.objects.select_related('user').all()
     permission_classes=[IsAuthenticated]
     authentication_classes=[JWTAuthentication]
     serializer_class=ProfileSerilizer
+    pagination_class=None
 
 
     def perform_create(self, serializer):
@@ -259,13 +285,107 @@ class ProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
     def get_object(self):
-        profile = super().get_object()
-        if profile.user != self.request.user:
-            raise PermissionDenied("You don't have permission to access this profile.")
-        return profile
+        address = super().get_object()
+        if address.user != self.request.user:
+            raise PermissionDenied("You don't have permission to access this address.")
+        return address
 
 
+#API view for creating  single order 
+class BuyNowView(generics.CreateAPIView):
+    permission_classes=[IsAuthenticated]
+    authentication_classes=[JWTAuthentication]
 
+    def post(self,request,*args,**kwargs):
+        address_id=request.data.get('address_id')
+        product_id = int(request.data.get('product_id'))
+        quantity = int(request.data.get('quantity'))
+        user = request.user
+        order_items=[]
+
+        try:
+            product=Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return Response({'error','Product DoesNotExist'})
+
+        if product.quantity <=0:
+            return Response({'Error' :f"{product.name} :Out of stock"})
+        
+        if quantity <= 0:
+            return Response({'error':'quantity must be greater than 1'})
+
+        if product.quantity < quantity:
+            return Response({'error'  :f"{product.name} :Quantity exceeds available stock"})
+
+        price=product.price
+        total_price = price * quantity
+
+        order_items.append({
+            "product": product,
+            "quantity": quantity,
+            "price": total_price
+            })
+
+        if address_id:
+            try:
+                address=Address.objects.get(user=user,id=address_id)
+            except Address.DoesNotExist:
+                return Response({"error": "Address not found."})
+        else:
+            address = Address.objects.get(user=user, address_is_default=True)
+
+        payment_method= request.data.get('payment_method')
+
+        if payment_method is None:
+            return Response({'message': 'Please provide a payment method'})
+
+        if payment_method not in ['cash_on_delivery','credit_card','paypal']:
+            return Response({"error": "Invalid payment method"})
+
+        order= Order.objects.create(
+            user=user,
+            total_amount=total_price,
+            payment_method=payment_method,
+            address=address,
+            status='processing'
+        )
+
+        items=OrderItem.objects.create(
+            order=order,
+            product=product,
+            quantity=quantity,
+            price=price
+        )
+        product.quantity -= quantity
+        product.save()
+
+
+        context={
+            'order':order,
+            'order_items':order_items
+        }
+
+        subject="Order Placed Successfully"
+        email_to=[user.email]
+        html_content=render_to_string('order.html',context)
+        email=EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
+        email.attach_alternative(html_content,"text/html")
+        email.send()
+
+
+        subject="New Order Received"
+        email_to=['admin@gmail.com']
+        html_content=render_to_string('order_admin.html',context)
+        email=EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
+        email.attach_alternative(html_content,"text/html")
+        email.send()
+        items.delete()
+
+        serializer_data=OrderSerializer(order)
+        return Response({'order':serializer_data.data})
+
+
+    
 # API view for creating  order
 class OrderCreateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -274,7 +394,9 @@ class OrderCreateView(APIView):
 
     def post(self, request, *args, **kwargs):
         user = self.request.user
-        items = CartItem.objects.filter(cart__user=user).select_related('cart')
+        address_id=request.data.get('address_id')
+      
+        items = CartItem.objects.filter(user=user)
         order_items = []
         total_amount = 0  
 
@@ -296,17 +418,28 @@ class OrderCreateView(APIView):
             product.quantity -= item.quantity
             product.save()
 
-        profile = Profile.objects.select_related('user').filter(user=user).first()
+        if address_id:
+            try:
+                address=Address.objects.get(user=user,id=address_id)
+            except Address.DoesNotExist:
+                return Response({"error": "Address not found."})
+        else:
+            address = Address.objects.get(user=user, address_is_default=True)
+    
+        payment_method=request.data.get('payment_method')
 
-        if not profile:
-            return Response({"error":"Profile does not exist. Please provide the complete address by following this link.",
-            "link":" http://127.0.0.1:8000/app_user/profile/"})
+        if payment_method is None:
+            return Response({'message': 'Please provide a payment method'})
+
+        if payment_method not in ['cash_on_delivery','credit_card','paypal']:
+            return Response({"error": "Invalid payment method"})
+
 
         order = Order.objects.create(
             user=user,
             total_amount=total_amount, 
-            payment_method='cash_on_delivery',
-            profile=profile,
+            payment_method=payment_method,
+            address=address,
             status='processing' 
         )
         
@@ -355,4 +488,7 @@ class OrderListView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return Order.objects.filter(user=user)
+        return self.queryset.filter(user=user)
+
+
+
