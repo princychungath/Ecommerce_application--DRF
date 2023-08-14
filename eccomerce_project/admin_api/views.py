@@ -14,12 +14,15 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 import json
 
+
 #listing all users
 class  UserListView(generics.ListAPIView):
     queryset=User.objects.all().order_by('username')
     serializer_class= UserListSerilizer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
+    pagination_class=None
+
 
 #removing Users
 class UserRemoveView(generics.DestroyAPIView):
@@ -30,7 +33,7 @@ class UserRemoveView(generics.DestroyAPIView):
 
     def delete(self,request,*args,**kwargs):
         response=super().delete(self,request,*args,**kwargs)
-        return Response({'message','User is Removed'})
+        return Response({'message':'User is Removed'})
 
 
 #Sending Pramotion mails
@@ -46,31 +49,52 @@ class PramotionalMailView(APIView):
             email=EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
             email.attach_alternative(html_content,"text/html")
             email.send()
-        return Response({'message','email send Successfully'})
+        return Response({'message':'email send Successfully'})
 
 
 #view for adding new categories
-class CategoryCreateView(generics.ListCreateAPIView):
+class CategoryCreateView(generics.CreateAPIView):
     queryset=Category.objects.all()
     serializer_class=CategoryViewSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
     
     def perform_create(self, serializer):
-        serializer.save(created_user=self.request.user)
+        serializer.save(created_user=self.request.user,updated_user=self.request.user)
 
 
-
-#detailview for category- update,delete 
-class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Category.objects.all()
-    serializer_class = CategoryViewSerializer
+#view for Listing  categories
+class CategoryListView(generics.ListAPIView):
+    queryset=Category.objects.all()
+    serializer_class=CategoryViewSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
+    pagination_class=None
 
-    def delete(self, request, *args, **kwargs):
-        response = super().delete(request, *args, **kwargs)
-        return Response({'message': 'Category is deleted'})
+
+#view for Detailview of  categories
+class CategoryDetailView(generics.RetrieveAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategoryViewSerializer
+    permission_classes = [IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+
+
+#view for Update  categories
+class CategoryUpdate(generics.UpdateAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategoryViewSerializer
+    permission_classes = [IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+
+    def perform_update(self, serializer):
+        serializer.save(updated_user=self.request.user)
+
+    def patch(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
 
 
 
@@ -85,26 +109,52 @@ class ProductCreateView(generics.CreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            product=serializer.save(created_user=self.request.user)
+            product=serializer.save(created_user=self.request.user,updated_user=self.request.user)
             categories=json.loads(request.data.get('categories'))
             product.categories.add(*categories)
-            return Response({"message": "Product is Created"})
+            return Response(serializer.data)
         else:
             return Response(serializer.errors)
+
+
 
 
 #view for Listing products
 class ProductListView(generics.ListAPIView):
     queryset=Product.objects.all().prefetch_related('categories')
-    serializer_class=ProductSerializer
+    serializer_class=ProductCreateSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
     pagination_class=MyCustomPagination
 
 
 #detailview of products
-class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Product.objects.prefetch_related('categories').all()
+class ProductDetailView(generics.RetrieveAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductCreateSerializer
+    permission_classes=[IsAdminUser]
+    authentication_classes=[JWTAuthentication]
+
+
+class ProductUpdateView(generics.UpdateAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductCreateSerializer
+    permission_classes=[IsAdminUser]
+    authentication_classes=[JWTAuthentication]
+
+
+    def perform_update(self,serializer):
+        serializer.save(updated_user=self.request.user)
+
+    def put(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
+
+class ProductRemoveView(generics.DestroyAPIView):
+    queryset = Product.objects.all()
     serializer_class = ProductCreateSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
@@ -112,7 +162,6 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
     def delete(self, request, *args, **kwargs):
         response = super().delete(request, *args, **kwargs)
         return Response({'message': 'Product is deleted'})
-
 
 
 #view for listing all orders
@@ -126,7 +175,7 @@ class Admin_OrderListView(generics.ListAPIView):
 
 # detailview for orders
 class Admin_OrderDetailView(generics.RetrieveAPIView):
-    queryset= Order.objects.all().select_related('user','address')
+    queryset= Order.objects.all()
     serializer_class= OrderSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
@@ -149,7 +198,7 @@ class Admin_OrderDetailView(generics.RetrieveAPIView):
 
 # UpdateAPIView for order-status update , passing statusupdates through email
 class OrderConfirmView(generics.UpdateAPIView):
-    queryset= Order.objects.all().select_related('user', 'address')
+    queryset= Order.objects.all()
     serializer_class= OrderconfirmSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
@@ -176,17 +225,3 @@ class OrderConfirmView(generics.UpdateAPIView):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-           

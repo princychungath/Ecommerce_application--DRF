@@ -26,7 +26,7 @@ class Address(models.Model):
     place = models.CharField(max_length=100)
     pin = models.CharField(max_length=10)
     mobile_number = models.CharField(max_length=15)
-    address_is_default = models.BooleanField(default=True)
+    address_is_default = models.BooleanField(default=False)
 
 
 
@@ -42,7 +42,7 @@ class Order(models.Model):
     ]
 
     payment_method = models.CharField(max_length=20,choices=payment_choice)
-    address = models.ForeignKey(Address, on_delete=models.CASCADE)
+    address = models.ForeignKey(Address, on_delete=models.PROTECT)
     status_choices = [
         ('processing', 'Processing'),
         ('shipped', 'Shipped'),
