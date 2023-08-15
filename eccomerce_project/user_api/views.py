@@ -378,69 +378,79 @@ class BuyNowView(generics.CreateAPIView):
     permission_classes=[IsAuthenticated]
     authentication_classes=[JWTAuthentication]
 
-    def post(self,request,*args,**kwargs):
-        address_id=request.data.get('address_id')
+
+    def post(self, request, *args, **kwargs):
+        address_id = request.data.get('address_id')
         product_id = request.data.get('product_id')
         quantity = request.data.get('quantity')
         user = request.user
-        order_items=[]
+        order_items = []
 
         try:
-            product=Product.objects.get(id=product_id)
+            product = Product.objects.get(id=product_id)
         except Product.DoesNotExist:
-            return Response({'error','Product DoesNotExist'})
+            return Response({'error': 'Product DoesNotExist'})
 
-        if product.quantity <=0:
-            return Response({'Error' :f"{product.name} :Out of stock"})
-        
+        if product.quantity <= 0:
+            return Response({'Error': f"{product.name} :Out of stock"})
+
         if quantity is None:
-            quantity=1
-
+            quantity = 1
         elif quantity == 0:
             return Response({"error": "Quantity must be at least 1"})
 
         if product.quantity < quantity:
-            return Response({'error'  :f"{product.name} :Quantity exceeds available stock"})
+            return Response({'error': f"{product.name} :Quantity exceeds available stock"})
 
-        price=product.price
+        price = product.price
         total_price = price * quantity
 
         order_items.append({
             "product": product,
             "quantity": quantity,
             "price": total_price
-            })
+        })
 
-
+        address_data = {}
         if address_id:
             try:
-                address=Address.objects.get(user=user,id=address_id)
+                address = Address.objects.get(user=user, id=address_id)
+                address_data = {
+                    "address_id": address.id,
+                    "house_name": address.house_name,
+                    "place": address.place,
+                    "pin":address.pin,
+                    "mobile_number":address.mobile_number
+                }
             except Address.DoesNotExist:
                 return Response({"error": "Address not found."})
         else:
             try:
                 address = Address.objects.get(user=user, address_is_default=True)
+                address_data = {
+                    "address_id": address.id,
+                    "house_name": address.house_name,
+                    "place": address.place,
+                    "pin":address.pin,
+                    "mobile_number":address.mobile_number
+                }
             except Address.DoesNotExist:
                 return Response({"error": "Address not found."})
 
 
-        payment_method= request.data.get('payment_method')
-
-        if payment_method is None:
-            return Response({'message': 'Please provide a payment method'})
-
-        if payment_method not in ['cash_on_delivery','credit_card','paypal']:
+        payment_method = request.data.get('payment_method')
+        if payment_method is None or payment_method not in ['cash_on_delivery', 'credit_card', 'paypal']:
             return Response({"error": "Invalid payment method"})
 
-        order= Order.objects.create(
+        order = Order.objects.create(
             user=user,
             total_amount=total_price,
             payment_method=payment_method,
-            address=address,
+            address=address_data,
             status='processing'
         )
 
-        items=OrderItem.objects.create(
+        items = OrderItem.objects.create(
             order=order,
             product=product,
             quantity=quantity,
@@ -513,20 +523,35 @@ class OrderCreateView(generics.CreateAPIView):
             product.quantity -= item.quantity
             product.save()
 
+        address_data = {}
         if address_id:
             try:
-                address=Address.objects.get(user=user,id=address_id)
+                address = Address.objects.get(user=user, id=address_id)
+                address_data = {
+                    "address_id": address.id,
+                    "house_name": address.house_name,
+                    "place": address.place,
+                    "pin":address.pin,
+                    "mobile_number":address.mobile_number
+                }
             except Address.DoesNotExist:
                 return Response({"error": "Address not found."})
         else:
-            address = Address.objects.get(user=user, address_is_default=True)
-    
-        payment_method=request.data.get('payment_method')
+            try:
+                address = Address.objects.get(user=user, address_is_default=True)
+                address_data = {
+                    "address_id": address.id,
+                    "house_name": address.house_name,
+                    "place": address.place,
+                    "pin":address.pin,
+                    "mobile_number":address.mobile_number
+                }
+            except Address.DoesNotExist:
+                return Response({"error": "Address not found."})
 
-        if payment_method is None:
-            return Response({'message': 'Please provide a payment method'})
 
-        if payment_method not in ['cash_on_delivery','credit_card','paypal']:
+        payment_method = request.data.get('payment_method')
+        if payment_method is None or payment_method not in ['cash_on_delivery', 'credit_card', 'paypal']:
             return Response({"error": "Invalid payment method"})
 
 
@@ -534,7 +559,7 @@ class OrderCreateView(generics.CreateAPIView):
             user=user,
             total_amount=total_amount, 
             payment_method=payment_method,
-            address=address,
+            address=address_data,
             status='processing' 
         )
         

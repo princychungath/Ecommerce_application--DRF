@@ -42,7 +42,7 @@ class Order(models.Model):
     ]
 
     payment_method = models.CharField(max_length=20,choices=payment_choice)
-    address = models.ForeignKey(Address, on_delete=models.PROTECT)
+    address = models.JSONField() 
     status_choices = [
         ('processing', 'Processing'),
         ('shipped', 'Shipped'),
