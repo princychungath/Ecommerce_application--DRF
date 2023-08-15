@@ -23,10 +23,11 @@ class UserListSerilizer(serializers.ModelSerializer):
         fields=['id','username', 'first_name', 'last_name','date_joined']
 
 
+
 class ProductCreateSerializer(serializers.ModelSerializer):
     created_user=serializers.SerializerMethodField()
     updated_user=serializers.SerializerMethodField()
-    # quantity=serializers.SerializerMethodField()
+
     class Meta:
         model=Product
         fields=['id','product_name','description','price','quantity','image','created_user','updated_user','created_at','updated_at']
@@ -37,11 +38,6 @@ class ProductCreateSerializer(serializers.ModelSerializer):
     def get_updated_user(self,instance):
         return instance.updated_user.username
 
-    # def get_quantity(self, instance):
-    #     if instance.quantity <= 0:
-    #         return "out of stock"
-    #     else:
-    #         return instance.quantity
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -55,13 +51,14 @@ class ProductSerializer(serializers.ModelSerializer):
     
     class Meta:
         model=Product
-        fields=['id','product_name','description','price','quantity','image','categories']
+        fields=['id','product_name','description','price','quantity','image','created_user','updated_user','created_at','updated_at','categories']
 
     def get_quantity(self, instance):
         if instance.quantity <= 0:
             return "out of stock"
         else:
             return instance.quantity
+
 
 
 class OrderconfirmSerializer(serializers.ModelSerializer):

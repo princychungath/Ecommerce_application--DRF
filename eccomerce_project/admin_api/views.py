@@ -112,17 +112,17 @@ class ProductCreateView(generics.CreateAPIView):
             product=serializer.save(created_user=self.request.user,updated_user=self.request.user)
             categories=json.loads(request.data.get('categories'))
             product.categories.add(*categories)
+            product.save()
             return Response(serializer.data)
         else:
             return Response(serializer.errors)
 
 
 
-
 #view for Listing products
 class ProductListView(generics.ListAPIView):
     queryset=Product.objects.all().prefetch_related('categories')
-    serializer_class=ProductCreateSerializer
+    serializer_class=ProductSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
     pagination_class=MyCustomPagination
@@ -131,14 +131,14 @@ class ProductListView(generics.ListAPIView):
 #detailview of products
 class ProductDetailView(generics.RetrieveAPIView):
     queryset = Product.objects.all()
-    serializer_class = ProductCreateSerializer
+    serializer_class = ProductSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
 
-
+#Update of products
 class ProductUpdateView(generics.UpdateAPIView):
     queryset = Product.objects.all()
-    serializer_class = ProductCreateSerializer
+    serializer_class = ProductSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
 
@@ -153,9 +153,10 @@ class ProductUpdateView(generics.UpdateAPIView):
         return super().patch(request, *args, **kwargs)
 
 
+#delete of products
 class ProductRemoveView(generics.DestroyAPIView):
     queryset = Product.objects.all()
-    serializer_class = ProductCreateSerializer
+    serializer_class = ProductSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
 

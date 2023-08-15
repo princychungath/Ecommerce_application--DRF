@@ -52,6 +52,28 @@ class PasswordResetSerializer(serializers.Serializer):
 
 
 
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['category_name']
+ 
+       
+class ProductSerializer(serializers.ModelSerializer):
+    categories =CategorySerializer(many=True)
+    quantity=serializers.SerializerMethodField()
+    
+    class Meta:
+        model=Product
+        fields=['id','product_name','description','price','quantity','image','categories']
+
+    def get_quantity(self, instance):
+        if instance.quantity <= 0:
+            return "out of stock"
+        else:
+            return instance.quantity
+
+
+
 
 class ProfileSerilizer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
@@ -74,14 +96,14 @@ class AddressSerilizer(serializers.ModelSerializer):
 
 
 
-class ProductSerializer(serializers.ModelSerializer):
+class ProductviewSerializer(serializers.ModelSerializer):
        class Meta:
         model=Product
         fields=['id','product_name','image']
 
 
 class CartItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True)
+    product = ProductviewSerializer(read_only=True)
     user = serializers.SerializerMethodField()  
 
     class Meta:
