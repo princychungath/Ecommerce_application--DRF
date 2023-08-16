@@ -20,7 +20,6 @@ from django.utils.encoding import force_bytes,force_str
 from django.utils.http import urlsafe_base64_decode
 
 
-
 # API view for user registration
 
 class RegisterUser(APIView):
@@ -34,8 +33,11 @@ class RegisterUser(APIView):
             html_content = render_to_string('user_reg.html',context)
             email = EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
             email.attach_alternative(html_content,"text/html")
-            email.send()
-            return Response({'message':'User registered successfully'})
+            try:
+                email.send()
+                return Response({'message': 'User registered successfully and email sent.'})
+            except Exception as e:
+                return Response({'message': 'User registered successfully, but email sending failed.', 'error': str(e)})
         else:
             return Response(serializer.errors)
 
