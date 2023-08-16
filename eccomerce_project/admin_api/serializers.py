@@ -27,18 +27,22 @@ class UserListSerilizer(serializers.ModelSerializer):
 class ProductCreateSerializer(serializers.ModelSerializer):
     created_user=serializers.SerializerMethodField()
     updated_user=serializers.SerializerMethodField()
+    categories=serializers.SerializerMethodField()
 
     class Meta:
         model=Product
-        fields=['id','product_name','description','price','quantity','image','created_user','updated_user','created_at','updated_at']
+        fields=['id','product_name','description','price','quantity','image','categories','created_user','updated_user','created_at','updated_at']
 
     def get_created_user(self,instance):
         return instance.created_user.username
 
     def get_updated_user(self,instance):
         return instance.updated_user.username
-
-
+    
+    def get_categories(self, instance):
+        categories = instance.categories.all()  
+        category_names = [category.category_name for category in categories]
+        return category_names
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
