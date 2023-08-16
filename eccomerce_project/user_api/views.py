@@ -110,11 +110,22 @@ class PasswordResetView(APIView):
 # API to list products with filtering and pagination
 
 class ProductList(generics.ListAPIView):
-    queryset = Product.objects.prefetch_related('categories').all()
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['product_name','price','quantity','categories__category_name']
+    filterset_fields = ['product_name','categories__category_name']
     pagination_class=MyCustomPagination
+
+
+    def get_queryset(self):
+        queryset = Product.objects.prefetch_related('categories').all()
+
+        min_price = self.request.query_params.get('min_price')
+        max_price = self.request.query_params.get('max_price')
+        if min_price is not None:
+            queryset = queryset.filter(price__gte=min_price)
+        if max_price is not None:
+            queryset = queryset.filter(price__lte=max_price)
+        return queryset
 
 
 
