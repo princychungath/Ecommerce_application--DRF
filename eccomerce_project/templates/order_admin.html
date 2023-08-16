@@ -42,7 +42,7 @@
             <p><strong>      Product list        </strong></p>
             <ul>
                 {% for item in order_items %}
-                    <li><strong>Product:</strong> {{ item.product.name }} <strong>Quantity:</strong> {{ item.quantity }} <strong>Total:</strong> {{ item.price }}</li>
+                    <li><strong>Product:</strong> {{ item.product.product_name }} <strong>Quantity:</strong> {{ item.quantity }} <strong>Total:</strong> {{ item.price }}</li>
                 {% endfor %}
             </ul>
             <p style="align-items: center; color: blue;">Happy Shopping!</p>
