@@ -55,11 +55,11 @@ class SendPasswordResetEmail(APIView):
         user = User.objects.filter(email=email).first()
         if not user:
             return Response({'error': 'User with this email address does not exist.'})
-        # generates a password reset token 
+        # generates a password reset token
         token = default_token_generator.make_token(user)
         #encode pk
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        reset_url = 'http://127.0.0.1:8000/app_user/reset/password/'  
+        reset_url = 'http://127.0.0.1:8000/app_user/reset/password/'
 
         context = {
             'reset_url': reset_url,
@@ -67,18 +67,28 @@ class SendPasswordResetEmail(APIView):
             'uid':uid,
             'user':user
         }
+
         subject = 'Password Reset'
         email_to = [email]
-        html_content = render_to_string('reset_password.html',context)
-        email = EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL, email_to)
-        email.attach_alternative(html_content,"text/html")
-        email.send()
-        response_data={
-            'success': 'Password reset email sent.',
-            'token':token,
-            'uid':uid,
-        }
-        return Response(response_data)
+        html_content = render_to_string('reset_password.html', context)
+
+        email = EmailMultiAlternatives(subject, html_content, settings.DEFAULT_FROM_EMAIL, email_to)
+        email.attach_alternative(html_content, "text/html")
+        try:
+            email.send()
+            response_data = {
+                'success': 'Password reset email sent.',
+                'token': token,
+                'uid': uid,
+            }
+            return Response(response_data)
+        except Exception as e:
+            return Response({'message': ' email sending failed.',
+            'error': str(e),
+            'token': token,
+            'uid': uid,
+            })
+
 
 
 
