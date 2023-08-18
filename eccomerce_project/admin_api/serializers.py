@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Product,Category
-from user_api.models import Order,User
+from user_api.models import Order,User,OrderItem
 
 
 class CategoryViewSerializer(serializers.ModelSerializer): 
@@ -73,3 +73,6 @@ class OrderconfirmSerializer(serializers.ModelSerializer):
 
     def get_created_user(self,instance):
         return instance.created_user.username
+
+
+

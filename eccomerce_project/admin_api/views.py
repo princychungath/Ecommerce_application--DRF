@@ -15,6 +15,7 @@ from django.template.loader import render_to_string
 import json
 
 
+
 #listing all users
 class  UserListView(generics.ListAPIView):
     queryset=User.objects.all().order_by('username')
@@ -43,10 +44,11 @@ class PramotionalMailView(APIView):
         users=User.objects.all()
         for user in users:
             subject='Exclusive 20% Off Your Next Purchase!'
+            email_from="admin@gmail.com"
             context={"user":user.username}
             email_to=[user.email]
             html_content=render_to_string('promotional_email.html',context)
-            email=EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
+            email=EmailMultiAlternatives(subject,html_content,email_from,email_to)
             email.attach_alternative(html_content,"text/html")
             email.send()
         return Response({'message':'email send Successfully'})
@@ -72,7 +74,7 @@ class CategoryListView(generics.ListAPIView):
     pagination_class=None
 
 
-#view for Detailview of  categories
+# Detailview for categories
 class CategoryDetailView(generics.RetrieveAPIView):
     queryset = Category.objects.all()
     serializer_class = CategoryViewSerializer
@@ -116,7 +118,6 @@ class ProductCreateView(generics.CreateAPIView):
             return Response(serializer.data)
         else:
             return Response(serializer.errors)
-
 
 
 #view for Listing products
@@ -167,7 +168,7 @@ class ProductRemoveView(generics.DestroyAPIView):
 
 #view for listing all orders
 class Admin_OrderListView(generics.ListAPIView):
-    queryset= Order.objects.all().select_related('user','address')
+    queryset= Order.objects.all().select_related('user')
     serializer_class= OrderSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
@@ -177,7 +178,6 @@ class Admin_OrderListView(generics.ListAPIView):
 # detailview for orders
 class Admin_OrderDetailView(generics.RetrieveAPIView):
     queryset= Order.objects.all()
-    serializer_class= OrderSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
 
@@ -187,13 +187,28 @@ class Admin_OrderDetailView(generics.RetrieveAPIView):
             serializer = OrderSerializer(instance)
             items = OrderItem.objects.filter(order=instance)
             order_item_serializer = OrderItemSerializer(items, many=True)
+        
+            order_items_list = [] 
+        
+            for item in order_item_serializer.data:
+                product = item['product']
+                quantity = item['quantity']
+                total_price = item['price']
+            
+                order_item_data = {
+                    'product': product,
+                    'quantity': quantity,
+                    'total_price': total_price
+                }
+                order_items_list.append(order_item_data)
+        
             response_data = {
                 'order': serializer.data,
-                'order_items': order_item_serializer.data
+                'order_items': order_items_list
             }
             return Response(response_data)
         except Order.DoesNotExist:
-            return Response({'error':'Order not found'})
+            return Response({'error': 'Order not found'})
 
 
 
@@ -216,9 +231,10 @@ class OrderConfirmView(generics.UpdateAPIView):
                 'status': serializer_status
             }
             subject = "Order Status Updated"
+            email_from="admin@gmail.com"
             email_to = [instance.user.email]
             html_content = render_to_string('status_update.html', context)
-            email = EmailMultiAlternatives(subject, html_content, settings.DEFAULT_FROM_EMAIL, email_to)
+            email = EmailMultiAlternatives(subject, html_content, email_from, email_to)
             email.attach_alternative(html_content, "text/html")
             email.send()
             return Response({'message': 'Status updated successfully'})

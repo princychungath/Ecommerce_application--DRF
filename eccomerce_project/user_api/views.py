@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework import generics
 from rest_framework.response import Response
-from .serializers import ProductSerializer,CartItemSerializer,UserSignUpSerializer,PasswordResetSerializer,OrderSerializer,AddressSerilizer,ProfileSerilizer
+from .serializers import ProductSerializer,CartItemSerializer,UserSignUpSerializer,PasswordResetSerializer,OrderSerializer,AddressSerilizer,ProfileSerilizer,OrderItemSerializer
 from .models import User,CartItem,Order,OrderItem,Address,Profile
 from admin_api.models import Product
 from django_filters.rest_framework import DjangoFilterBackend
@@ -18,6 +18,8 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes,force_str
 from django.utils.http import urlsafe_base64_decode
+
+
 
 
 # API view for user registration
@@ -55,11 +57,11 @@ class SendPasswordResetEmail(APIView):
         user = User.objects.filter(email=email).first()
         if not user:
             return Response({'error': 'User with this email address does not exist.'})
-        # generates a password reset token
+        # generates a password reset token 
         token = default_token_generator.make_token(user)
         #encode pk
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        reset_url = 'http://127.0.0.1:8000/app_user/reset/password/'
+        reset_url = 'http://127.0.0.1:8000/app_user/reset/password/'  
 
         context = {
             'reset_url': reset_url,
@@ -67,27 +69,18 @@ class SendPasswordResetEmail(APIView):
             'uid':uid,
             'user':user
         }
-
         subject = 'Password Reset'
         email_to = [email]
-        html_content = render_to_string('reset_password.html', context)
-
-        email = EmailMultiAlternatives(subject, html_content, settings.DEFAULT_FROM_EMAIL, email_to)
-        email.attach_alternative(html_content, "text/html")
-        try:
-            email.send()
-            response_data = {
-                'success': 'Password reset email sent.',
-                'token': token,
-                'uid': uid,
-            }
-            return Response(response_data)
-        except Exception as e:
-            return Response({'message': ' email sending failed.',
-            'error': str(e),
-            'token': token,
-            'uid': uid,
-            })
+        html_content = render_to_string('reset_password.html',context)
+        email = EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL, email_to)
+        email.attach_alternative(html_content,"text/html")
+        email.send()
+        response_data={
+            'success': 'Password reset email sent.',
+            'token':token,
+            'uid':uid,
+        }
+        return Response(response_data)
 
 
 
@@ -119,6 +112,7 @@ class PasswordResetView(APIView):
 
 
 
+
 # API to list products with filtering and pagination
 
 class ProductList(generics.ListAPIView):
@@ -141,6 +135,7 @@ class ProductList(generics.ListAPIView):
 
 
 
+
 # Displays the detailed information of a product identified by its unique ID.
 
 class ProductDetail(generics.RetrieveAPIView):
@@ -155,6 +150,7 @@ class ProductDetail(generics.RetrieveAPIView):
             return Response(serializer.data)
         except Product.DoesNotExist:
             return Response({"message": "Product not found."})
+
 
 
 
@@ -194,14 +190,13 @@ class CartAddView(generics.CreateAPIView):
             cart_item.delete()
             return Response({"error": f" {product.product_name} : Quantity exceeds available stock"})
 
-        cart_item.total = product.price * cart_item.quantity
-        cart_item.save()
-
         serializer = CartItemSerializer(cart_item)
         context={
             "cart_items":serializer.data
         }
         return Response(context)
+
+
 
 
 #API for listing all cart items
@@ -212,9 +207,11 @@ class CartListView(generics.ListAPIView):
     serializer_class = CartItemSerializer
     pagination_class = None
 
+
     def get_queryset(self):
         user = self.request.user
         return self.queryset.filter(user=user)
+
 
 
 
@@ -241,7 +238,9 @@ class CartUpdateView(generics.UpdateAPIView):
         if instance.user != request.user:
            return Response({"message":"You don't have the permission to update this CART"})
         return super().put(request, *args, **kwargs)
-        
+
+
+
 
 # API for Removing cartitems in the user's cart.
 class CartDeleteView(generics.DestroyAPIView):
@@ -279,6 +278,8 @@ class AddressCreateView(generics.CreateAPIView):
             instance = serializer.save(user=user)
 
 
+
+
 # API endpoint for listing Address.
 class AddresslistView(generics.ListAPIView):
     queryset=Address.objects.all().select_related('user')
@@ -291,6 +292,8 @@ class AddresslistView(generics.ListAPIView):
         user = self.request.user
         return Address.objects.filter(user=user)
         
+
+
 
 # API endpoint for Detail view of Address.
 class AddressDetailView(generics.RetrieveAPIView):
@@ -307,6 +310,9 @@ class AddressDetailView(generics.RetrieveAPIView):
         return address
 
 
+
+
+# API endpoint for Update  Address.
 class AddressUpdateView(generics.UpdateAPIView):
     queryset=Address.objects.all()
     permission_classes=[IsAuthenticated]
@@ -319,6 +325,10 @@ class AddressUpdateView(generics.UpdateAPIView):
             raise PermissionDenied("You don't have permission to access this address.")
         return address
 
+
+
+
+# API endpoint for Remove  Address.
 class AddressDestroyView(generics.DestroyAPIView):
     queryset=Address.objects.all()
     permission_classes=[IsAuthenticated]
@@ -335,6 +345,8 @@ class AddressDestroyView(generics.DestroyAPIView):
         return Response({'message': 'Address has been deleted successfully.'})
 
 
+
+
 # API endpoint for creating a user profile.
 class ProfileCreateView(generics.CreateAPIView):
     queryset=Profile.objects.all()
@@ -345,6 +357,8 @@ class ProfileCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
 
 
 # API endpoint for viewuser profile.
@@ -359,6 +373,8 @@ class ProfileView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         return Profile.objects.filter(user=user)
+
+
 
 
 # API endpoint for Update User profile.
@@ -377,6 +393,8 @@ class ProfileUpdateView(generics.UpdateAPIView):
 
 
 
+
+
 # API endpoint for Delete profile.
 class ProfileDestroyView(generics.DestroyAPIView):
     queryset=Profile.objects.all()
@@ -392,6 +410,8 @@ class ProfileDestroyView(generics.DestroyAPIView):
             raise PermissionDenied("You don't have permission to access this address.")
         response=super().delete(self,request,*args,**kwargs)
         return Response({'message': 'Profile has been deleted successfully.'})
+
+
 
 
 
@@ -507,6 +527,7 @@ class BuyNowView(generics.CreateAPIView):
         return Response({'order':serializer_data.data})
 
 
+
     
 # API view for creating  order
 class OrderCreateView(generics.CreateAPIView):
@@ -620,6 +641,8 @@ class OrderCreateView(generics.CreateAPIView):
 
 
 
+
+
 # API view for listing Orders associated with User
 class OrderListView(generics.ListAPIView):
 
@@ -635,4 +658,42 @@ class OrderListView(generics.ListAPIView):
         return self.queryset.filter(user=user)
 
 
+
+
+# API endpoint for Detail view of Order.
+class OrderDetailView(generics.RetrieveAPIView):
+    queryset= Order.objects.all()
+    serializer_class= OrderSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Order.objects.filter(user=user)
+
+    def get(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            serializer = OrderSerializer(instance)
+            items = OrderItem.objects.filter(order=instance)
+            order_item_serializer = OrderItemSerializer(items, many=True)
+            order_items_list=[]
+            for item in order_item_serializer.data:
+                product=item['product']
+                quantity=item['quantity']
+                price=item['price']
+                order_items={
+                    'product':product,
+                    'quantity':quantity,
+                    'price':price
+                }
+                print(order_items)
+                order_items_list.append(order_items)
+            response_data = {
+                'order': serializer.data,
+                'order_items': order_items_list
+            }
+            return Response(response_data)
+        except Order.DoesNotExist:
+            return Response({'error':'Order not found'})
 

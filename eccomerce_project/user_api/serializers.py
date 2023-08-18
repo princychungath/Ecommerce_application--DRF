@@ -99,19 +99,23 @@ class AddressSerilizer(serializers.ModelSerializer):
 class ProductviewSerializer(serializers.ModelSerializer):
        class Meta:
         model=Product
-        fields=['id','product_name','image']
+        fields=['id','product_name','price','image']
 
 
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductviewSerializer(read_only=True)
-    user = serializers.SerializerMethodField()  
+    user = serializers.SerializerMethodField() 
+    total=serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
-        fields = ['user', 'product', 'quantity','total']
+        fields = ['id','user', 'product', 'quantity','total']
 
     def get_user(self,instance):
         return instance.user.username
+
+    def get_total(self,instance):
+        return instance.product.price* instance.quantity
      
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -125,8 +129,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True) 
-    order = OrderSerializer(read_only=True)
+    product = ProductviewSerializer(read_only=True) 
 
     class Meta:
         model = OrderItem

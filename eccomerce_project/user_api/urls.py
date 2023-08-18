@@ -29,6 +29,7 @@ urlpatterns=[
 
     path('order/add/',views.OrderCreateView.as_view(), name='order-add'),
     path('order/list/',views.OrderListView.as_view(), name='order-lists'),
+    path('order/detail/<int:pk>/',views.OrderDetailView.as_view(), name='order-detail'),
     path('order/now/',views.BuyNowView.as_view(), name='order-now')
     
     
