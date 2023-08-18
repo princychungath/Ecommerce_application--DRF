@@ -122,7 +122,7 @@ class OrderSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
     class Meta:
         model = Order
-        fields = ['id','user','created_at','total_amount','payment_method']
+        fields = ['id','user','created_at','total_amount','payment_method','status']
 
     def get_user(self,instance):
         return instance.user.username
