@@ -77,13 +77,22 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ProfileSerilizer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
+    first_name=serializers.SerializerMethodField()
+    last_name=serializers.SerializerMethodField()
+    email=serializers.SerializerMethodField()
+
     class Meta:
         model =Profile
-        fields = ['user','profile_picture','mobile_number','created_at']
+        fields = ['user','profile_picture','email','first_name', 'last_name','mobile_number','created_at']
 
     def get_user(self,instance):
         return instance.user.username
-
+    def get_first_name(self,instance):
+        return instance.user.first_name
+    def get_last_name(self,instance):
+        return instance.user.last_name
+    def get_email(self,instance):
+        return instance.user.email
 
 class AddressSerilizer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()

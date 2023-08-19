@@ -17,15 +17,13 @@ class CartItem(models.Model):
     product=models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
 
-
 class Address(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    house_name = models.CharField(max_length=100)
-    place = models.CharField(max_length=100)
-    pin = models.CharField(max_length=10)
-    mobile_number = models.CharField(max_length=15)
+    house_name = models.CharField(max_length=100, blank=True, null=True)
+    place = models.CharField(max_length=100, blank=True, null=True)
+    pin = models.CharField(max_length=10, blank=True, null=True)
+    mobile_number = models.CharField(max_length=15, unique=True)
     address_is_default = models.BooleanField(default=False)
-
 
 
 class Order(models.Model):
@@ -60,5 +58,5 @@ class OrderItem(models.Model):
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     profile_picture = models.ImageField(upload_to='static/profile_images/')
-    mobile_number = models.CharField(max_length=15)
+    mobile_number = models.CharField(max_length=15,unique=True)
     created_at=models.DateTimeField(auto_now_add=True)

@@ -37,9 +37,9 @@ class RegisterUser(APIView):
             email.attach_alternative(html_content,"text/html")
             try:
                 email.send()
-                return Response({'message': 'User registered successfully and email sent.'})
-            except Exception as e:
-                return Response({'message': 'User registered successfully, but email sending failed.', 'error': str(e)})
+                return Response({'message': 'User registered successfully'})
+            except Exception :
+                return Response({'message': 'User registered successfully, but email sending failed.'})
         else:
             return Response(serializer.errors)
 
@@ -487,12 +487,13 @@ class BuyNowView(generics.CreateAPIView):
             status='processing'
         )
 
-        items = OrderItem.objects.create(
+        OrderItem.objects.create(
             order=order,
             product=product,
             quantity=quantity,
             price=price
         )
+       
         product.quantity -= quantity
         product.save()
 
@@ -516,7 +517,6 @@ class BuyNowView(generics.CreateAPIView):
         email=EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
         email.attach_alternative(html_content,"text/html")
         email.send()
-        items.delete()
 
         serializer_data=OrderSerializer(order)
         return Response({'order':serializer_data.data})
