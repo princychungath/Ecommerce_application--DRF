@@ -429,7 +429,7 @@ class BuyNowView(generics.CreateAPIView):
             return Response({'error': 'Product DoesNotExist'})
 
         if product.quantity <= 0:
-            return Response({'Error': f"{product.name} :Out of stock"})
+            return Response({'Error': f"{product.product_name} :Out of stock"})
 
         if quantity is None:
             quantity = 1
@@ -437,7 +437,7 @@ class BuyNowView(generics.CreateAPIView):
             return Response({"error": "Quantity must be at least 1"})
 
         if product.quantity < quantity:
-            return Response({'error': f"{product.name} :Quantity exceeds available stock"})
+            return Response({'error': f"{product.product_name} :Quantity exceeds available stock"})
 
         price = product.price
         total_price = price * quantity

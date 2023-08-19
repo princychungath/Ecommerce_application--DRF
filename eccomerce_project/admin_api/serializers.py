@@ -44,11 +44,15 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         category_names = [category.category_name for category in categories]
         return category_names
 
+
+
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['category_name']
-       
+
+
+    
 class ProductSerializer(serializers.ModelSerializer):
     categories =CategorySerializer(many=True)
     quantity=serializers.SerializerMethodField()
@@ -73,6 +77,5 @@ class OrderconfirmSerializer(serializers.ModelSerializer):
 
     def get_created_user(self,instance):
         return instance.created_user.username
-
 
 

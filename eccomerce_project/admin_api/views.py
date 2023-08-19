@@ -92,11 +92,6 @@ class CategoryUpdate(generics.UpdateAPIView):
     def perform_update(self, serializer):
         serializer.save(updated_user=self.request.user)
 
-    def patch(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
 
 
 
@@ -136,10 +131,11 @@ class ProductDetailView(generics.RetrieveAPIView):
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
 
+
 #Update of products
 class ProductUpdateView(generics.UpdateAPIView):
     queryset = Product.objects.all()
-    serializer_class = ProductSerializer
+    serializer_class = ProductCreateSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
 
@@ -147,17 +143,12 @@ class ProductUpdateView(generics.UpdateAPIView):
     def perform_update(self,serializer):
         serializer.save(updated_user=self.request.user)
 
-    def put(self, request, *args, **kwargs):
-        return super().patch(request, *args, **kwargs)
-
-    def patch(self, request, *args, **kwargs):
-        return super().patch(request, *args, **kwargs)
 
 
 #delete of products
 class ProductRemoveView(generics.DestroyAPIView):
     queryset = Product.objects.all()
-    serializer_class = ProductSerializer
+    serializer_class = ProductCreateSerializer
     permission_classes=[IsAdminUser]
     authentication_classes=[JWTAuthentication]
 
