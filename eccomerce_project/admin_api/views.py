@@ -223,22 +223,25 @@ class OrderConfirmView(generics.UpdateAPIView):
         instance = self.get_object()
         instance_status = instance.status
         serializer_status = request.data.get('status')
-        instance.status = serializer_status
-        instance.save()
-        if instance_status != serializer_status:
-            context = {
-                'order_id': instance.id,
-                'status': serializer_status
-            }
-            subject = "Order Status Updated"
-            email_from="admin@gmail.com"
-            email_to = [instance.user.email]
-            html_content = render_to_string('status_update.html', context)
-            email = EmailMultiAlternatives(subject, html_content, email_from, email_to)
-            email.attach_alternative(html_content, "text/html")
-            email.send()
-            return Response({'message': 'Status updated successfully'})
-        return Response({'message': 'Status not updated'})
+        if serializer_status is not None:
+            instance.status = serializer_status
+            instance.save()
+            if instance_status != serializer_status:
+                context = {
+                    'order_id': instance.id,
+                    'status': serializer_status
+                }
+                subject = "Order Status Updated"
+                email_from="admin@gmail.com"
+                email_to = [instance.user.email]
+                html_content = render_to_string('status_update.html', context)
+                email = EmailMultiAlternatives(subject, html_content, email_from, email_to)
+                email.attach_alternative(html_content, "text/html")
+                email.send()
+                return Response({'message': 'Status updated successfully'})
+            return Response({'message': 'Status not updated'})
+        else:
+            return Response({'message': 'Please provide status'})
 
 
 

@@ -75,12 +75,7 @@ class SendPasswordResetEmail(APIView):
         email = EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL, email_to)
         email.attach_alternative(html_content,"text/html")
         email.send()
-        response_data={
-            'success': 'Password reset email sent.',
-            'token':token,
-            'uid':uid,
-        }
-        return Response(response_data)
+        return Response({"message": "Password reset link has been sent to your email."})
 
 
 
