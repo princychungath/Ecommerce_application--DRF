@@ -11,13 +11,13 @@ class UserSignUpSerializer(serializers.ModelSerializer):
 
     def save(self):
         register = User(
-            username=self.validated_data['username'],
-            email=self.validated_data['email'],
-            first_name=self.validated_data['first_name'],
-            last_name=self.validated_data['last_name'],
+            username=self.data.get('username'),
+            email=self.data.get('email'),
+            first_name=self.data.get('first_name'),
+            last_name=self.data.get('last_name'),
         )
-        password = self.validated_data['password']
-        password2 = self.validated_data['password2']
+        password = self.data.get('password')
+        password2 = self.data.get('password2')
 
         if password != password2:
             raise serializers.ValidationError({'password': 'Password should match'})
@@ -42,9 +42,8 @@ class PasswordResetSerializer(serializers.Serializer):
         return data
 
     def save(self):
-        uid = self.validated_data['uid']
-        new_password = self.validated_data['new_password']
-
+        uid = self.data.get['uid']
+        new_password = self.data.get['new_password']
         user = User.objects.get(id=uid)
         user.set_password(new_password)
         user.save()
