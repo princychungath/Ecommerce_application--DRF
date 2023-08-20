@@ -29,8 +29,8 @@ class UserSignUpSerializer(serializers.ModelSerializer):
 class PasswordResetSerializer(serializers.Serializer):
     uid = serializers.CharField(required=True)
     token = serializers.CharField(required=True)
-    new_password = serializers.CharField(required=True)
-    new_password_1= serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True,write_only=True)
+    new_password_1= serializers.CharField(required=True,write_only=True)
 
 
     def validate(self, data):
