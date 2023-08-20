@@ -42,8 +42,8 @@ class PasswordResetSerializer(serializers.Serializer):
         return data
 
     def save(self):
-        uid = self.data.get['uid']
-        new_password = self.data.get['new_password']
+        uid = self.data.get('uid')
+        new_password = self.data.get('new_password')
         user = User.objects.get(id=uid)
         user.set_password(new_password)
         user.save()
