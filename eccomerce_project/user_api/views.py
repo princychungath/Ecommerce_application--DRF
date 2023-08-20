@@ -36,7 +36,7 @@ class RegisterUser(APIView):
             email = EmailMultiAlternatives(subject,html_content,settings.DEFAULT_FROM_EMAIL,email_to)
             email.attach_alternative(html_content,"text/html")
             email.send()
-                return Response({'message': 'User registered successfully'})
+            return Response({'message': 'User registered successfully'})
         else:
             return Response(serializer.errors)
 
