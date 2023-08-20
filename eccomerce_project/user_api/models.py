@@ -19,9 +19,9 @@ class CartItem(models.Model):
 
 class Address(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    house_name = models.CharField(max_length=100, blank=True, null=True)
-    place = models.CharField(max_length=100, blank=True, null=True)
-    pin = models.CharField(max_length=10, blank=True, null=True)
+    house_name = models.CharField(max_length=100, blank=False, null=False)
+    place = models.CharField(max_length=100, blank=False, null=False)
+    pin = models.CharField(max_length=10, blank=False, null=False)
     mobile_number = models.CharField(max_length=15, unique=True)
     address_is_default = models.BooleanField(default=False)
 
