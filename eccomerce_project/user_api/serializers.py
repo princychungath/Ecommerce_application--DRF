@@ -35,9 +35,9 @@ class PasswordResetSerializer(serializers.Serializer):
 
     def validate(self, data):
         new_password = data.get('new_password')
-        new_password_1 = data.get('new_password_1')
+        new_password_1 = data.get('confirm_password')
 
-        if new_password != new_password_1:
+        if new_password != confirm_password:
             raise serializers.ValidationError("Passwords do not match.")
         return data
 
@@ -51,14 +51,9 @@ class PasswordResetSerializer(serializers.Serializer):
 
 
 
-class CategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ['category_name']
- 
        
 class ProductSerializer(serializers.ModelSerializer):
-    categories =CategorySerializer(many=True)
+    categories =serializers.SerializerMethodField()
     quantity=serializers.SerializerMethodField()
     
     class Meta:
@@ -71,6 +66,10 @@ class ProductSerializer(serializers.ModelSerializer):
         else:
             return instance.quantity
 
+    def get_categories(self,instance):
+        categories=instance.categories.all()
+        category_names = [Category.category_name for Category in categories]
+        return category_names
 
 
 
@@ -86,10 +85,13 @@ class ProfileSerilizer(serializers.ModelSerializer):
 
     def get_user(self,instance):
         return instance.user.username
+
     def get_first_name(self,instance):
         return instance.user.first_name
+
     def get_last_name(self,instance):
         return instance.user.last_name
+        
     def get_email(self,instance):
         return instance.user.email
 

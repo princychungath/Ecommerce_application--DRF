@@ -256,7 +256,7 @@ class CartDeleteView(generics.DestroyAPIView):
 
 # API endpoint for Addding Address
 class AddressCreateView(generics.CreateAPIView):
-    queryset=Address.objects.select_related('user').all()
+    queryset=Address.objects.all()
     permission_classes=[IsAuthenticated]
     authentication_classes=[JWTAuthentication]
     serializer_class=AddressSerilizer
@@ -336,7 +336,6 @@ class AddressDestroyView(generics.DestroyAPIView):
         instance = self.get_object()
         if instance.user != self.request.user:
             raise PermissionDenied("You don't have permission to delete this address.")
-        
         response = super().delete(request, *args, **kwargs)
         return Response({'message': 'Address has been deleted successfully.'})
 
@@ -663,33 +662,35 @@ class OrderDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def get_queryset(self):
-        user = self.request.user
-        return Order.objects.filter(user=user)
-
     def get(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
+            if instance.user != request.user:
+                return Response({'error': "You don't have permission to access this order."})
             serializer = OrderSerializer(instance)
             items = OrderItem.objects.filter(order=instance)
             order_item_serializer = OrderItemSerializer(items, many=True)
-            order_items_list=[]
+       
+            order_items_list = [] 
+        
             for item in order_item_serializer.data:
-                product=item['product']
-                quantity=item['quantity']
-                price=item['price']
-                order_items={
-                    'product':product,
-                    'quantity':quantity,
-                    'price':price
+                product = item['product']
+                quantity = item['quantity']
+                total_price = item['price']
+            
+                order_item_data = {
+                    'product': product,
+                    'quantity': quantity,
+                    'total_price': total_price
                 }
-                print(order_items)
-                order_items_list.append(order_items)
+                order_items_list.append(order_item_data)
+                print('order_items_list',order_items_list)
+        
             response_data = {
                 'order': serializer.data,
                 'order_items': order_items_list
             }
             return Response(response_data)
         except Order.DoesNotExist:
-            return Response({'error':'Order not found'})
+            return Response({'error': 'Order not found'})
 
