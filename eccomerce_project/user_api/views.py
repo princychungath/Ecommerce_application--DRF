@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from .pagination import MyCustomPagination
 from django.core.exceptions import PermissionDenied
+from django.shortcuts import render
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -21,6 +22,9 @@ from django.utils.http import urlsafe_base64_decode
 
 
 
+
+def api_documentation(request):
+    return render(request, 'home.html')
 
 # API view for user registration
 
